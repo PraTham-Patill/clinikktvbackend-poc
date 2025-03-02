@@ -1,6 +1,5 @@
 # Clinikk TV Backend Service POC - Design Document
-
-Hey Ravi and Sagar! I’m Pratil, and this is the design doc for my Clinikk TV Backend Service POC. I wanted to share how I approached building this backend, the challenges I faced (like that pesky MongoDB connection error!), and what I learned along the way. My goal was to create a simple, functional RESTful API while keeping it modular and ready to scale. I’ve broken this down into High-Level Design (HLD), Low-Level Design (LLD), and some reflections on trade-offs and future improvements. Hope you find it insightful!
+This is the design doc for my Clinikk TV Backend Service POC. I wanted to share how I approached building this backend, the challenges I faced (like that pesky MongoDB connection error!), and what I learned along the way. My goal was to create a simple, functional RESTful API while keeping it modular and ready to scale. I’ve broken this down into High-Level Design (HLD), Low-Level Design (LLD), and some reflections on trade-offs and future improvements. Hope you find it insightful!
 
 ## High-Level Design (HLD)
 
@@ -113,4 +112,4 @@ Here’s a high-level view of the components I envisioned:
 - **Caching**: Use Redis for faster metadata retrieval.
 - **CDN Integration**: Improve media delivery performance with Cloudflare.
 
-This design doc captures my learnings and decisions while building the Clinikk TV Backend Service POC. Let me know your thoughts!
+This design doc captures my learnings and decisions while building the Clinikk TV Backend Service POC.
