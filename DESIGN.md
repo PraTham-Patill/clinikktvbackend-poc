@@ -1,38 +1,116 @@
-# Clinikk TV Backend Service Design
+# Clinikk TV Backend Service POC - Design Document
+
+Hey Ravi and Sagar! I’m Pratil, and this is the design doc for my Clinikk TV Backend Service POC. I wanted to share how I approached building this backend, the challenges I faced (like that pesky MongoDB connection error!), and what I learned along the way. My goal was to create a simple, functional RESTful API while keeping it modular and ready to scale. I’ve broken this down into High-Level Design (HLD), Low-Level Design (LLD), and some reflections on trade-offs and future improvements. Hope you find it insightful!
 
 ## High-Level Design (HLD)
 
-### System Architecture
-- API Gateway
-- Media Service
-- Metadata Database (MongoDB)
-- File Storage (Local for POC, cloud for production)
-- Authentication (Future)
-- Streaming Service (Basic streaming, CDN for production)
+### System Architecture Overview
+The Clinikk TV Backend Service POC is designed to manage health-related media content—like videos and audio—for delivery to an Android app and Progressive Web App (PWA). At its core, it’s a RESTful API built with Node.js and Express.js, with MongoDB for storing metadata and a local filesystem for the media files themselves.
 
-### Scalability
-- Stateless Media Service
-- Sharded MongoDB
-- Cloud storage
+Here’s a high-level view of the components I envisioned:
+
+```
++---------------------+       +---------------------+       +---------------------+
+|  Android App / PWA  | ----> |  API Gateway        | ----> |  Media Service      |
+| (Client)            |       | (Express Server)    |       | (Handles Requests)  |
++---------------------+       +---------------------+       +---------------------+
+                                    |                          |
+                                    |                          |
+                                    v                          v
+                          +---------------------+       +---------------------+
+                          |  Metadata Database  |       |  File Storage       |
+                          |  (MongoDB)          |       |  (Local Filesystem) |
+                          +---------------------+       +---------------------+
+```
+
+- **API Gateway (Express Server)**: Handles incoming HTTP requests from clients (e.g., POST `/media`, GET `/media/{id}`). It routes requests to the appropriate handlers in the Media Service.
+- **Media Service**: The core logic for managing media—uploading files, retrieving them, and listing metadata.
+- **Metadata Database (MongoDB)**: Stores metadata about each media file (e.g., title, type, upload date). Initially, I wanted to use MongoDB for persistence.
+- **File Storage (Local Filesystem)**: Stores the actual media files in an `uploads/` directory. For a POC, this keeps things simple, but I’d switch to cloud storage in production.
+- **Clients (Android App / PWA)**: The end users interacting with the API (not implemented in this POC).
+
+### Design Goals
+- **Modularity**: Split the code into distinct layers (`models/`, `controllers/`, `routes/`, `services/`) so it’s easy to maintain and extend.
+- **Scalability**: Keep the API stateless for future load balancing.
+- **Resilience**: Handle failures gracefully—like when MongoDB isn’t running (more on that below!).
+
+### Scalability Considerations
+- **Stateless API**: The Express server is stateless, so I can add more instances behind a load balancer as traffic grows.
+- **Database**: MongoDB can be sharded for horizontal scaling if the metadata grows large.
+- **File Storage**: Right now, it’s local, but I’d move to AWS S3 or Google Cloud Storage to handle bigger files and more users.
+- **Future Additions**: I’d add a CDN (like Cloudflare) for faster media delivery and caching (e.g., Redis) to reduce database load.
 
 ## Low-Level Design (LLD)
 
 ### API Endpoints
-- POST /media: Upload media
-- GET /media/{id}: Retrieve media
-- GET /media: List media
+#### **POST /media**
+- **Purpose**: Upload a media file and its metadata.
+- **Implementation**: Handled by `mediaController.js`, uses Multer to process file uploads.
+- **Response Codes**:
+  - `201 Created`: Returns the ID of the uploaded media.
+  - `400 Bad Request`: If required fields are missing.
+  - `500 Internal Server Error`: For server issues.
 
-### Database Schema
-- Media collection with fields: _id, title, description, type, duration, uploadDate, filePath, mimetype
+#### **GET /media/{id}**
+- **Purpose**: Retrieve a media file by its ID.
+- **Implementation**: Streams the file using `fs.createReadStream` to keep memory usage low.
+- **Response Codes**:
+  - `200 OK`: Streams the file.
+  - `404 Not Found`: If the file doesn’t exist.
+  - `500 Internal Server Error`: For server issues.
+
+#### **GET /media**
+- **Purpose**: List all media metadata in JSON format.
+- **Implementation**: Fetches metadata from MongoDB or the in-memory store.
+- **Response Codes**:
+  - `200 OK`: JSON array of metadata.
+  - `500 Internal Server Error`: For server issues.
+
+#### **GET /media/list**
+- **Purpose**: Display a styled HTML page with the media list.
+- **Implementation**: Dynamically generates HTML in `mediaController.js`.
+- **Response Codes**:
+  - `200 OK`: HTML page.
+
+### Database Schema (MongoDB)
+- `_id`: Auto-generated by MongoDB.
+- `title`: String, required.
+- `description`: String, optional.
+- `type`: String, required.
+- `duration`: Number, optional.
+- `uploadDate`: Date, defaults to current timestamp.
+- `filePath`: String, path to the file.
+- `mimetype`: String.
+
+### Data Storage Logic
+- **MongoDB**: Metadata is stored in MongoDB for persistence.
+- **In-Memory Fallback**: If MongoDB fails, the app switches to an in-memory array.
 
 ### Error Handling
-- Validation for required fields
-- HTTP status codes for errors
+- **Validation Errors**: If required fields are missing, return 400.
+- **File Not Found**: If the file isn’t in `uploads/`, return 404.
+- **Database Connection**: If MongoDB isn’t running, switch to in-memory storage.
 
-### Security
-- Path validation
-- Input sanitization
-- Future authentication
+## Challenges and Solutions
 
-## Known Issues
-- **Vulnerability in `dicer`**: A high-severity issue exists in `dicer` (via `busboy` and `multer`). No fix is available as of February 23, 2025. For production, consider replacing `multer` with an alternative like `express-fileupload`.
+### MongoDB Connection Error
+- **Issue**: MongoDB wasn’t running, causing `ECONNREFUSED` errors.
+- **Solution**: Added a try-catch block to switch to in-memory storage if MongoDB is unavailable.
+
+### File Upload Size
+- **Issue**: Large files could overload the server.
+- **Solution**: Used Multer with a 100MB file size limit.
+
+## Trade-offs and Design Decisions
+- **Local Filesystem vs. Cloud Storage**: Used local storage for simplicity but would switch to AWS S3 for production.
+- **MongoDB vs. In-Memory**: MongoDB for persistence, in-memory for resilience.
+- **Styled Presentation**: Added an HTML view to enhance the demo experience.
+
+## Scalability and Future Improvements
+- **Horizontal Scaling**: Add more Express servers behind a load balancer.
+- **Database Scaling**: Implement MongoDB sharding.
+- **Cloud Storage**: Move media files to AWS S3 or Google Cloud Storage.
+- **Caching**: Use Redis for faster metadata retrieval.
+- **CDN Integration**: Improve media delivery performance with Cloudflare.
+
+This design doc captures my learnings and decisions while building the Clinikk TV Backend Service POC. Let me know your thoughts!
